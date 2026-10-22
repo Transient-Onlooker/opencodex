@@ -5,6 +5,55 @@ import { preserveOperatorUltraFastTiers } from "./operator-tiers";
 
 const MANAGED_ULTRAFAST = "opencodex_managed_ultrafast";
 
+/** Flex is a foreign caller tier: advertise it only when the final wire can forward it verbatim. */
+export function supportsConfiguredFlex(policy: ResolvedFastPolicy | undefined): boolean {
+  return policy?.eligibility === "eligible"
+    && policy.forwardCallerTier === true
+    && policy.fastWire?.kind === "service-tier"
+    && policy.fastWire.foreignCallerTiers === "verbatim"
+    && policy.fastWire.canonicalToWire.flex === "flex";
+}
+
+/** An exact routed capability, never inferred from a model family or template. */
+export function configuredFlexSlugs(models: readonly CatalogModel[]): ReadonlySet<string> {
+  const declarations = new Map<string, boolean>();
+  for (const model of models) {
+    const slug = catalogModelSlug(model);
+    const supported = model.provider !== COMBO_NAMESPACE && model.nativeAlias !== true
+      && model.supportsServiceTier === true && model.supportsFlexTier === true;
+    declarations.set(slug, supported && declarations.get(slug) !== false);
+  }
+  return new Set([...declarations].filter(([, supported]) => supported).map(([slug]) => slug));
+}
+
+/**
+ * Publish the optional Flex selector. A generated tier is marked so a stale
+ * persisted row cannot keep it after the live capability has been withdrawn.
+ */
+export function applyConfiguredFlex(entry: RawEntry, configured: boolean): void {
+  const marker = "opencodex_managed_flex";
+  if (entry[marker] === entry.slug) {
+    if (Array.isArray(entry.service_tiers)) {
+      entry.service_tiers = entry.service_tiers.filter(tier => tier?.id !== "flex");
+    }
+    if (Array.isArray(entry.additional_speed_tiers)) {
+      entry.additional_speed_tiers = entry.additional_speed_tiers.filter(tier => tier !== "flex");
+    }
+  }
+  delete entry[marker];
+  if (!configured) return;
+  const tiers = Array.isArray(entry.service_tiers) ? entry.service_tiers : [];
+  if (!tiers.some(tier => tier?.id === "flex")) {
+    entry.service_tiers = [...tiers, {
+      id: "flex", name: "Flex",
+      description: "Lower cost, slower processing; provider access required",
+    }];
+  }
+  const speeds = Array.isArray(entry.additional_speed_tiers) ? entry.additional_speed_tiers : [];
+  if (!speeds.includes("flex")) entry.additional_speed_tiers = [...speeds, "flex"];
+  entry[marker] = entry.slug;
+}
+
 /** Advertise Ultra Fast only when the eligible final wire explicitly maps that exact tier. */
 export function supportsConfiguredUltraFast(policy: ResolvedFastPolicy | undefined): boolean {
   return policy?.eligibility === "eligible"

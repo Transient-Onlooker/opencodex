@@ -701,7 +701,19 @@ export const PROVIDER_REGISTRY_EXTENDED: readonly ProviderRegistryEntry[] = [
     preserveResponsesReasoningContent: true,
     note: "Domestic BigModel Coding Plan Responses endpoint; static model roster",
   },
-  { id: "nanogpt", label: "NanoGPT", baseUrl: "https://nano-gpt.com/api/v1", adapter: "openai-chat", authKind: "key", dashboardUrl: "https://nano-gpt.com/api" },
+  {
+    id: "nanogpt", label: "NanoGPT", baseUrl: "https://nano-gpt.com/api/v1",
+    adapter: "openai-chat", authKind: "key", dashboardUrl: "https://nano-gpt.com/api",
+    // NanoGPT's model catalog advertises both flex and priority for this exact Luna id.
+    // Do not extend this to other models without equivalent upstream capability evidence.
+    modelSupportsServiceTier: { "openai/gpt-6-luna": true },
+    chatServiceTier: true,
+    fastWire: {
+      kind: "service-tier",
+      canonicalToWire: { priority: "priority", flex: "flex" },
+      foreignCallerTiers: "verbatim",
+    },
+  },
   { id: "synthetic", label: "Synthetic", baseUrl: "https://api.synthetic.new/openai/v1", adapter: "openai-chat", authKind: "key", dashboardUrl: "https://synthetic.new" },
   // SiliconFlow publishes an OpenAI-compatible chat endpoint and a dynamic model catalog. Do not
   // freeze reasoning controls here: enable_thinking/thinking_budget support and limits vary by

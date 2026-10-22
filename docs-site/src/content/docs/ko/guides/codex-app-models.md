@@ -172,6 +172,20 @@ fast_mode = true
 `service_tier`가 제거됩니다(레지스트리가 정식 OpenAI를 `true`, DeepSeek과 Volcengine Ark를 `false`로 분류). 미분류 커스텀 게이트웨이는 호출자가 준 값을 그대로 보존하고 주입도 받지 않습니다. 따라서
 처리 불가능한 곳에 fast 옵션이 노출되지 않으며, 커스텀 게이트웨이는 `true`로 명시적으로 옵트인할 수 있습니다.
 
+### 지원되는 라우팅 모델에서 Flex 선택
+
+NanoGPT의 `openai/gpt-6-luna`는 Codex 모델 속도 선택 메뉴에 **Flex**와 **Fast**를 표시합니다.
+다른 게이트웨이는 검증된 모델에 대해 `modelSupportsServiceTier`를 지정하고,
+프로바이더 설정에 `fastWire: { kind: "service-tier", canonicalToWire: { priority: "priority", flex: "flex" }, foreignCallerTiers: "verbatim" }`를 선언할 수 있습니다.
+`openai-chat` 어댑터라면 `chatServiceTier: true`도 필요합니다.
+이 설정은 지원 여부를 선언할 뿐 요금이나 실제 계정 권한을 보장하지 않습니다.
+
+Flex는 Fast를 켜는 것만으로 활성화되지 않으며 Codex에서 직접 선택해야 합니다.
+OpenCodex의 전역 `fastMode`는 Auto로 유지하세요. Fast/Default 강제 모드는 Flex 선택보다
+우선합니다. 명시적으로 지원하는 라우팅 모델에만 Flex를 추가하고, 지원 선언이 없어지면
+동기화 이후 자동 생성된 항목을 제거합니다. 네이티브·계정별 모델과 콤보는 변경하지 않습니다.
+Flex 요청은 지연이 길거나 리소스 부족으로 실패할 수 있습니다.
+
 ### Codex 데스크톱에서 Ultra Fast 선택
 
 `service_tier: "ultrafast"`를 지원하는 프로바이더에는 전송 매핑을 한 번 설정하면 됩니다.

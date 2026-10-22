@@ -7,7 +7,7 @@ import type { OcxProviderConfig } from "../../src/types";
 import { captureFastPolicyAuthority, fastPolicyForModel } from "../../src/providers/service-tier";
 import { decideTier } from "../../src/providers/fastwire";
 import { applyProviderConfigHints } from "../../src/codex/catalog/model-hints";
-import { configuredUltraFastSlugs } from "../../src/codex/catalog/configured-tiers";
+import { configuredFlexSlugs, configuredUltraFastSlugs } from "../../src/codex/catalog/configured-tiers";
 import { buildCatalogEntriesFromObservedState, mergeCatalogEntriesFromObservedState, type ObservedCatalogMergeInput } from "../../src/codex/catalog/build-entries";
 import type { CatalogModel, RawEntry } from "../../src/codex/catalog/parsing";
 import { repoRoot } from "../helpers/repo-root";
@@ -121,6 +121,80 @@ describe("configured Ultra Fast in the native Codex speed picker", () => {
   test("selection and disabled-model policy still remove the entire row", () => {
     expect(merge([], { disabledModels: new Set([slug]) })).toEqual([]);
     expect(merge([], { selectedModelsByProvider: new Map([["gateway", new Set<string>()]]) })).toEqual([]);
+  });
+});
+
+
+describe("configured Flex in the native Codex service-tier picker", () => {
+  function flexProvider(overrides: Partial<OcxProviderConfig> = {}): OcxProviderConfig {
+    return provider({
+      fastWire: {
+        kind: "service-tier", canonicalToWire: { priority: "priority", flex: "flex" },
+        foreignCallerTiers: "verbatim",
+      },
+      ...overrides,
+    });
+  }
+
+  test("publishes Flex only on a verified routed model, without changing its default", () => {
+    const config = flexProvider();
+    const model = hinted(config);
+    expect(model.supportsFlexTier).toBe(true);
+    expect([...configuredFlexSlugs([model])]).toEqual([slug]);
+    const row = merge([], {
+      routedEntries: build([model]),
+      configuredUltraFastSlugs: new Set(),
+      configuredFlexSlugs: configuredFlexSlugs([model]),
+    })[0]!;
+    expect(row.service_tiers.map((tier: { id: string }) => tier.id)).toEqual(["priority", "flex"]);
+    expect(row.additional_speed_tiers).toEqual(["fast", "flex"]);
+    expect(row.default_service_tier).toBeNull();
+    expect(row.service_tier).toBeUndefined();
+    expect(row.opencodex_managed_flex).toBe(slug);
+    expect(decideTier(fastPolicyForModel(config, "task-model", "gateway"), undefined, "flex"))
+      .toEqual({ kind: "forward-caller" });
+    const removed = merge([row], {
+      routedEntries: build([hinted()]),
+      configuredUltraFastSlugs: new Set(),
+      configuredFlexSlugs: new Set(),
+    })[0]!;
+    expect(removed.service_tiers.some((tier: { id: string }) => tier.id === "flex")).toBe(false);
+    expect(removed.opencodex_managed_flex).toBeUndefined();
+  });
+
+  test.each([
+    ["missing flex mapping", { fastWire: undefined }],
+    ["unclassified model", { modelSupportsServiceTier: {} }],
+    ["provider opt-out", { supportsServiceTier: false }],
+    ["model opt-out", { modelSupportsServiceTier: { "task-model": false } }],
+    ["wrong wire value", { fastWire: { kind: "service-tier", canonicalToWire: { priority: "priority", flex: "priority" }, foreignCallerTiers: "verbatim" } }],
+    ["foreign tier blocked", { fastWire: { kind: "service-tier", canonicalToWire: { priority: "priority", flex: "flex" }, foreignCallerTiers: "drop" } }],
+    ["chat forwarding blocked", { adapter: "openai-chat" }],
+  ] as [string, Partial<OcxProviderConfig>][])("%s does not publish Flex", (_name, overrides) => {
+    const model = hinted(flexProvider(overrides));
+    expect(model.supportsFlexTier).toBe(false);
+    expect(configuredFlexSlugs([model]).size).toBe(0);
+  });
+
+  test("conflicting duplicates and combo aliases cannot borrow Flex", () => {
+    const model = hinted(flexProvider());
+    expect(configuredFlexSlugs([model, { ...model, supportsFlexTier: false }]).size).toBe(0);
+    expect(configuredFlexSlugs([{ ...model, provider: "combo", nativeAlias: true }]).size).toBe(0);
+    expect([...configuredFlexSlugs([{ ...model, alias: "gateway/friendly" }])]).toEqual(["gateway/friendly"]);
+  });
+
+  test("NanoGPT registry scopes Flex to the exact Luna model", () => {
+    const config: OcxProviderConfig = {
+      adapter: "openai-chat", baseUrl: "https://nano-gpt.com/api/v1", authMode: "key",
+      models: ["openai/gpt-6-luna", "another-model"], liveModels: false,
+    };
+    expect(hinted(config, { provider: "nanogpt", id: "openai/gpt-6-luna" }).supportsFlexTier).toBe(false);
+    const luna = applyProviderConfigHints("nanogpt", config, { provider: "nanogpt", id: "openai/gpt-6-luna" });
+    const other = applyProviderConfigHints("nanogpt", config, { provider: "nanogpt", id: "another-model" });
+    expect(luna.supportsFlexTier).toBe(true);
+    expect(luna.supportsServiceTier).toBe(true);
+    expect(other.supportsFlexTier).toBe(false);
+    expect([...configuredFlexSlugs([luna, other])]).toEqual(["nanogpt/openai-gpt-6-luna"]);
   });
 });
 

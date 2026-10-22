@@ -49,7 +49,7 @@ import { NATIVE_RESERVE_MODEL } from "./native-models";
 import { isReserveCatalogProjection, type ReserveCatalogProjection } from "./reserve";
 import { deriveEntry, finishUpstreamNativeEntry, isExactComboCatalogEntry } from "./derive-entry";
 import { PICKER_ORDER_PRIORITY_BASE, SPAWN_PRIORITY_FIELD } from "./subagent-roster";
-import { applyConfiguredUltraFast, configuredUltraFastSlugs } from "./configured-tiers";
+import { applyConfiguredFlex, applyConfiguredUltraFast, configuredFlexSlugs, configuredUltraFastSlugs } from "./configured-tiers";
 import { applyNativeUltraFastTier } from "./native-ultrafast";
 
 export interface ObservedCatalogEntryBuildInput {
@@ -114,11 +114,13 @@ export function buildCatalogEntries(
   });
   // Live discovery does not run the disk merge; use the same captured declarations and row fences.
   const configured = configuredUltraFastSlugs(goModels);
+  const configuredFlex = configuredFlexSlugs(goModels);
   for (const entry of entries) {
     if (typeof entry.slug !== "string" || !entry.slug.includes("/")
       || isNativeAliasCatalogEntry(entry) || isExactComboCatalogEntry(entry, exactComboSlugs)
       || trustedAccountBoundNativeCatalogSlug(entry) !== undefined) continue;
     applyConfiguredUltraFast(entry, undefined, configured.has(entry.slug), false);
+    applyConfiguredFlex(entry, configuredFlex.has(entry.slug));
   }
   applyFullModelPickerOrder(entries, modelPickerOrder);
   return entries;
@@ -485,6 +487,8 @@ export interface ObservedCatalogMergeInput {
   readonly ultraFastTier?: boolean;
   /** Current captured wire declarations; disk rows and templates never populate this set. */
   readonly configuredUltraFastSlugs?: ReadonlySet<string>;
+  /** Exact provider/model declarations for the optional Flex picker tier. */
+  readonly configuredFlexSlugs?: ReadonlySet<string>;
   readonly catalogModels: readonly RawEntry[];
   readonly baselineCatalogModels: readonly RawEntry[];
   readonly routedEntries: readonly RawEntry[];
@@ -532,6 +536,7 @@ export interface ObservedCatalogMergeInput {
 export function mergeCatalogEntriesFromObservedState({
   ultraFastTier = false,
   configuredUltraFastSlugs = new Set(),
+  configuredFlexSlugs = new Set(),
   catalogModels,
   baselineCatalogModels,
   routedEntries,
@@ -888,6 +893,7 @@ export function mergeCatalogEntriesFromObservedState({
       || isNativeAliasCatalogEntry(entry) || isExactComboCatalogEntry(entry, exactComboSlugs)
       || trustedAccountBoundNativeCatalogSlug(entry) !== undefined) continue;
     applyConfiguredUltraFast(entry, operatorRows.get(entry.slug), configuredUltraFastSlugs.has(entry.slug), ultraFastTier);
+    applyConfiguredFlex(entry, configuredFlexSlugs.has(entry.slug));
   }
   const finalRoutedEntrySet = new Set(finalRoutedEntries);
   const degradedPreservedCount = preservedRoutedEntries.filter(entry => {

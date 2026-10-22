@@ -314,6 +314,22 @@ advertised where it cannot be honored. An `openai-chat` destination can authoriz
 eligible model with `chatServiceTier: true`, or authorize only exact models with
 `modelSupportsServiceTier`; Responses routes do not need that extra Chat wire authorization.
 
+### Selecting Flex on eligible routed models
+
+On NanoGPT, `openai/gpt-6-luna` now advertises **Flex** and **Fast** in Codex's model speed selector.
+Other gateways can opt in per verified model by adding `modelSupportsServiceTier`
+and `fastWire: { kind: "service-tier", canonicalToWire: { priority: "priority", flex: "flex" }, foreignCallerTiers: "verbatim" }`
+to their provider entry. For `openai-chat` adapters, also set `chatServiceTier: true`
+so the caller's Flex request reaches the upstream API. This declares support; it does not
+change pricing or grant an account entitlement.
+
+Flex is **not** enabled by Fast mode: it must be selected explicitly in Codex.
+Leave opencodex's global `fastMode` on Auto; forced Fast or forced Default overrides
+caller-selected Flex. Only an eligible exact routed model receives the Flex catalog tier,
+and removing the capability withdraws the generated choice after synchronization.
+Native/account rows and combos are unchanged. Flex may have higher latency or
+temporary resource unavailability. A tier choice is not a promise of provider acceptance.
+
 ### Selecting Ultra Fast in Codex Desktop
 
 For a provider that supports `service_tier: "ultrafast"`, declare that wire mapping once.

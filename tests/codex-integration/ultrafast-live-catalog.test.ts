@@ -79,6 +79,21 @@ describe("live Codex catalog Ultra Fast", () => {
   });
 });
 
+
+test("live catalog publishes Flex only with explicit eligible forwarding capability", () => {
+  const withFlex = model({
+    fastWire: { kind: "service-tier", canonicalToWire: { priority: "priority", flex: "flex" }, foreignCallerTiers: "verbatim" },
+  });
+  const row = build([withFlex]).find(entry => entry.slug === slug)!;
+  expect(row.service_tiers.map((tier: { id: string }) => tier.id)).toEqual(["priority", "flex"]);
+  expect(row.additional_speed_tiers).toEqual(["fast", "flex"]);
+  expect(row.default_service_tier).toBeNull();
+  const withdrawn = model();
+  expect(build([withdrawn]).find(entry => entry.slug === slug)!.additional_speed_tiers).not.toContain("flex");
+  expect(build([withFlex, { ...withFlex, supportsFlexTier: false }])
+    .find(entry => entry.slug === slug)!.additional_speed_tiers).not.toContain("flex");
+});
+
 test("the real HTTP catalog repeatedly publishes only the declared routed tier", () => {
   const root = mkdtempSync(join(tmpdir(), "ocx-ultrafast-http-"));
   const codexHome = join(root, "codex");
