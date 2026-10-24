@@ -111,6 +111,7 @@ export function retainedFlexPolicyBySlug(
       ...(provider.models ?? []),
       ...Object.keys(provider.modelSupportsServiceTier ?? {}),
       ...Object.keys(provider.modelAliases ?? {}),
+      ...Object.keys(provider.modelAdapters ?? {}),
     ];
     const modelId = aliased[0] ?? decodeRoutedModelId(requested, knownIds);
     result.set(slug, supportsConfiguredFlex(fastPolicyForModel(provider, modelId, name)));

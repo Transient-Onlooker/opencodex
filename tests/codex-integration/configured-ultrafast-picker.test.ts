@@ -153,6 +153,30 @@ describe("configured Ultra Fast in the native Codex speed picker", () => {
     expect(check({ gateway: flexProvider }, "gateway/task-model")).toBe(true);
   });
 
+  test("degraded retained encoded slugs resolve adapter-only native IDs before Flex policy", () => {
+    const rowSlug = "gateway/a-b";
+    const base = provider({
+      models: [],
+      supportsServiceTier: true,
+      modelSupportsServiceTier: {},
+      modelAdapters: { "a/b": "openai-chat" },
+      fastWire: {
+        kind: "service-tier", canonicalToWire: { priority: "priority", flex: "flex" },
+        foreignCallerTiers: "verbatim",
+      },
+    });
+    const retainedPolicy = (config: OcxProviderConfig) =>
+      retainedFlexPolicyBySlug({ gateway: config }, [{ slug: rowSlug }], []).get(rowSlug);
+
+    // Without decoding, a-b incorrectly inherits the provider's Responses adapter
+    // and permits Flex, although the native a/b Chat route cannot forward that tier.
+    expect(fastPolicyForModel(base, "a-b", "gateway").forwardCallerTier).toBe(true);
+    expect(fastPolicyForModel(base, "a/b", "gateway").forwardCallerTier).toBe(false);
+    expect(retainedPolicy(base)).toBe(false);
+    // A verified Chat service-tier opt-in makes that exact native route eligible.
+    expect(retainedPolicy({ ...base, chatServiceTier: true })).toBe(true);
+  });
+
   test("selection and disabled-model policy still remove the entire row", () => {
     expect(merge([], { disabledModels: new Set([slug]) })).toEqual([]);
     expect(merge([], { selectedModelsByProvider: new Map([["gateway", new Set<string>()]]) })).toEqual([]);
