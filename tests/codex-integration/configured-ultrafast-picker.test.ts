@@ -7,7 +7,7 @@ import type { OcxProviderConfig } from "../../src/types";
 import { captureFastPolicyAuthority, fastPolicyForModel } from "../../src/providers/service-tier";
 import { decideTier } from "../../src/providers/fastwire";
 import { applyProviderConfigHints } from "../../src/codex/catalog/model-hints";
-import { configuredUltraFastSlugs } from "../../src/codex/catalog/configured-tiers";
+import { configuredUltraFastSlugs, retainedFlexPolicyBySlug } from "../../src/codex/catalog/configured-tiers";
 import { buildCatalogEntriesFromObservedState, mergeCatalogEntriesFromObservedState, type ObservedCatalogMergeInput } from "../../src/codex/catalog/build-entries";
 import type { CatalogModel, RawEntry } from "../../src/codex/catalog/parsing";
 import { repoRoot } from "../helpers/repo-root";
@@ -116,6 +116,28 @@ describe("configured Ultra Fast in the native Codex speed picker", () => {
     expect(merge(operator, { configuredUltraFastSlugs: new Set(), ultraFastTier: false })[0]!.additional_speed_tiers).toEqual(["fast"]);
     // Current configuration takes precedence, but never imports the old expensive default.
     expect(merge([{ ...operator[0], default_service_tier: "ultrafast" }])[0]!.default_service_tier).toBeNull();
+  });
+
+  test("degraded retained rows drop revoked Flex but preserve authorized Flex", () => {
+    const stored = merge();
+    const flex = { id: "flex", name: "Flex" };
+    stored[0]!.service_tiers.push(flex);
+    stored[0]!.additional_speed_tiers.push("flex");
+    const configured = provider({
+      fastWire: { kind: "service-tier", canonicalToWire: { priority: "priority", flex: "flex" }, foreignCallerTiers: "verbatim" },
+    });
+    const run = (active: typeof configured) => merge(stored, {
+      routedEntries: [], degradedProviderNames: new Set(["gateway"]),
+      configuredUltraFastSlugs: new Set(),
+      retainedFlexPolicyBySlug: retainedFlexPolicyBySlug({ gateway: active }, stored, []),
+    })[0]!;
+    expect(run(configured).additional_speed_tiers).toContain("flex");
+    const revoked = run(provider());
+    expect(revoked.service_tiers.map((tier: { id: string }) => tier.id)).not.toContain("flex");
+    expect(revoked.additional_speed_tiers).not.toContain("flex");
+    expect(run(provider({ modelSupportsServiceTier: { "task-model": false } })).additional_speed_tiers)
+      .not.toContain("flex");
+    expect(stored[0]!.additional_speed_tiers).toContain("flex");
   });
 
   test("selection and disabled-model policy still remove the entire row", () => {
