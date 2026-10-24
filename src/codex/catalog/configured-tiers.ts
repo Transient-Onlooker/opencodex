@@ -87,7 +87,7 @@ export function retainedFlexPolicyBySlug(
       name === namespace || provider.alias === namespace);
     if (!owner) continue;
     const [name, provider] = owner;
-    if (provider.disabled === true) {
+    if (provider.disabled === true || namespace === COMBO_NAMESPACE || name === COMBO_NAMESPACE) {
       result.set(slug, false);
       continue;
     }

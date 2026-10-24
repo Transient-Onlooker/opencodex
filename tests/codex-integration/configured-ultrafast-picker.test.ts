@@ -140,6 +140,19 @@ describe("configured Ultra Fast in the native Codex speed picker", () => {
     expect(stored[0]!.additional_speed_tiers).toContain("flex");
   });
 
+  test("retained Flex policy excludes physical combo providers and combo aliases without discovery", () => {
+    const flexProvider = provider({
+      fastWire: { kind: "service-tier", canonicalToWire: { priority: "priority", flex: "flex" }, foreignCallerTiers: "verbatim" },
+    });
+    const check = (providers: Record<string, OcxProviderConfig>, rowSlug: string) =>
+      retainedFlexPolicyBySlug(providers, [{ slug: rowSlug }], []).get(rowSlug);
+
+    expect(check({ combo: flexProvider }, "combo/task-model")).toBe(false);
+    expect(check({ combo: { ...flexProvider, alias: "bundle" } }, "bundle/task-model")).toBe(false);
+    expect(check({ gateway: { ...flexProvider, alias: "combo" } }, "combo/task-model")).toBe(false);
+    expect(check({ gateway: flexProvider }, "gateway/task-model")).toBe(true);
+  });
+
   test("selection and disabled-model policy still remove the entire row", () => {
     expect(merge([], { disabledModels: new Set([slug]) })).toEqual([]);
     expect(merge([], { selectedModelsByProvider: new Map([["gateway", new Set<string>()]]) })).toEqual([]);
