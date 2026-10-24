@@ -22,6 +22,17 @@ Accounts added through the [Orca import](codex-home.md#orca-source-owned-account
 validation-pending. Import alone supplies no entitlement evidence for the model catalog.
 
 ## Shared catalog
+
+Flex advertisement is an explicit final-route opt-in, not an inference from ordinary
+Fast: the eligible OpenAI-compatible service-tier wire must map `flex` to `flex`
+and permit caller-tier forwarding. Only ordinary routed catalog rows project that
+choice; combo-namespace and native-alias rows never inherit it. Disk-preserved
+routed rows bypass fresh tier generation during degraded provider discovery.
+Both retained-sync and convergence therefore compute current provider/model Flex
+eligibility from configuration, removing only revoked Flex entries/defaults from
+retained rows while preserving authorized Flex during provider outages. The
+final merge does not trust persisted tier metadata as current authority.
+
 Vision-sidecar attachment metadata is projected after provider discovery/cache reads in `src/codex/catalog/routed-gather.ts`. The gather captures `visionSidecar.enabled !== false` before awaiting discovery, and `src/codex/catalog/gather-capture.ts` includes that effective flag in the flight key. Provider TTL/stale rows exclude synthetic sidecar image input; custom rows and synthesized combo members use the same captured switch. Explicit/native image modalities remain intact, and enabled advertisement retains the existing config-based consumer predicate without probing credential availability. An effective Vision switch change through `src/server/management/config-routes.ts` invokes the catalog-only management funnel after persistence to publish both catalog and cache; incomplete work is exposed as `catalogRefreshPending` without claiming client reload. Coverage: `tests/codex-integration/catalog-vision-sidecar-disabled.test.ts` and `tests/vision/sidecar-settings-vision-catalog.test.ts`.
 Custom-provider missing windows use [source-labelled vendor estimates](catalog-vendor-context.md) only when the provider opts in with `inferContextWindow: true`; these remain distinct from asserted routing capacity.
 Static policy and observed catalog evidence are separate authorities. Antigravity grouping and selection projection follow the [discovered effort-family contract](providers-and-adapters.md#antigravity-effort-families).
