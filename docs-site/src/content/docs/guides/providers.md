@@ -52,6 +52,8 @@ reset is expected to recover as `+N% pool capacity`. **Incomplete coverage** mea
 accounts could not safely contribute to the estimate, for example because their plan or quota is
 unknown, their reading is stale, or the account is paused or needs reauthentication.
 
+Business Premium seats reported as `self_serve_business_prolite` count as five Standard-seat units in this estimate. This display weight does not select accounts or create a five-hour window when the upstream reports only weekly usage. The calibration follows the [official Business usage limits](https://help.openai.com/en/articles/12003714-chatgpt-business-models-and-limits), checked 2026-10-20; unknown plans continue to count at the baseline with the unknown-plan count disclosed.
+
 A **partial window coverage** warning means some included accounts reported one quota window but
 not another. The overview keeps those windows separate and marks each affected window incomplete
 instead of treating the missing reading as usage for that window.
@@ -398,6 +400,17 @@ used; its estimate remains unavailable unless the operator supplies `modelCosts`
 routing policies and cost caps that exclude unknown estimates can therefore exclude this alias.
 See [Kimi's model configuration](https://www.kimi.com/code/docs/en/kimi-code/models.html) and
 [API pricing](https://platform.kimi.ai/docs/pricing/chat).
+
+The `moonshot` (Kimi API) preset lists `kimi-k3.1-pro` and `kimi-k3.1-pro-highspeed` next to
+`kimi-k3` and the K2 ids. Both have a 1M-token context window and text + image input, and always
+think: the picker offers `low` / `high` / `max` (default `max`), Codex `medium` is sent as `high`
+and `xhigh` as `max`, and an explicit `none` leaves `reasoning_effort` out so the upstream default
+applies. Fixed sampling parameters (`temperature`, `top_p`, penalties) are not sent. A saved
+`moonshot` model list that is still the previous built-in list gains both ids at startup when it
+points at the International or China endpoint; an edited list or a Custom URL is left as it is.
+The preset default stays `kimi-k2.7-code`. Moonshot closes the K2 series to new accounts on
+2026-10-31 and plans to retire it by the end of December 2026; see the
+[Kimi API model list](https://platform.kimi.ai/docs/models).
 
 A custom `openai-chat` provider can opt in when its upstream documents support for
 `prompt_cache_key`:
